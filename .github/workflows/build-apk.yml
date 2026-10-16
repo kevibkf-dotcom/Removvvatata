@@ -1,5 +1,5 @@
 ```yaml
-name: Compilar APK Renova tu mente sin conexión
+name: "Compilar APK Renova tu mente sin conexión"
 
 on:
   workflow_dispatch:
@@ -10,42 +10,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Descargar proyecto
+      - name: "Descargar proyecto"
         uses: actions/checkout@v4
 
-      - name: Configurar Java 17
+      - name: "Configurar Java 17"
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: '17'
+          distribution: "temurin"
+          java-version: "17"
 
-      - name: Instalar componentes Android
+      - name: "Instalar Android SDK"
+        uses: android-actions/setup-android@v3
+
+      - name: "Instalar componentes Android"
         run: |
-          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          yes | sdkmanager --licenses || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
-          if [ -z "$SDKMANAGER" ]; then
-            echo "No se encontró sdkmanager"
-            exit 1
-          fi
-
-          yes | "$SDKMANAGER" --sdk_root="$ANDROID_HOME" --licenses || true
-
-          "$SDKMANAGER" --sdk_root="$ANDROID_HOME" \
-            "platform-tools" \
-            "platforms;android-35" \
-            "build-tools;35.0.0"
-
-      - name: Configurar Gradle
+      - name: "Configurar Gradle"
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.9'
+          gradle-version: "8.9"
 
-      - name: Verificar ZIP
+      - name: "Verificar ZIP"
         run: |
-          ZIP="Renova-tu-mente-PROYECTO-COMPLETO.zip"
+          ZIP="Renova-tu-mente-1000-versiculos-offline.zip"
 
           if [ ! -f "$ZIP" ]; then
-            echo "ERROR: No se encontró:"
+            echo "ERROR: No se encontró el ZIP:"
             echo "$ZIP"
             echo ""
             echo "Archivos disponibles:"
@@ -53,152 +45,96 @@ jobs:
             exit 1
           fi
 
-          echo "✓ ZIP encontrado:"
+          echo "ZIP encontrado correctamente:"
           ls -lh "$ZIP"
 
-      - name: Extraer proyecto
+      - name: "Extraer proyecto"
         run: |
-          ZIP="Renova-tu-mente-PROYECTO-COMPLETO.zip"
-
           rm -rf renova
           mkdir -p renova
 
-          unzip -q "$ZIP" -d renova
+          unzip -q "Renova-tu-mente-1000-versiculos-offline.zip" -d renova
 
-          echo "======================================"
-          echo "CONTENIDO EXTRAÍDO"
-          echo "======================================"
+          echo "Proyecto extraído."
 
-          find renova -maxdepth 3 -type f -print
-
-      - name: Detectar proyecto Android
+      - name: "Detectar carpeta del proyecto"
         run: |
-          SETTINGS="$(find renova -name settings.gradle -type f | head -n 1)"
+          SETTINGS=$(find renova -type f -name "settings.gradle" | head -n 1)
 
           if [ -z "$SETTINGS" ]; then
             echo "ERROR: No se encontró settings.gradle dentro del ZIP."
             echo ""
-            echo "Contenido completo:"
-            find renova -maxdepth 5 -type f -print
+            echo "Contenido del ZIP:"
+            unzip -l "Renova-tu-mente-1000-versiculos-offline.zip"
             exit 1
           fi
 
-          PROJECT_DIR="$(dirname "$SETTINGS")"
+          PROJECT_DIR=$(dirname "$SETTINGS")
 
-          echo "Proyecto Android encontrado en:"
+          echo "Proyecto encontrado en:"
           echo "$PROJECT_DIR"
 
           echo "$PROJECT_DIR" > project_dir.txt
 
-      - name: Verificar estructura del proyecto
+      - name: "Verificar estructura"
         run: |
-          PROJECT_DIR="$(cat project_dir.txt)"
+          PROJECT_DIR=$(cat project_dir.txt)
+
+          test -f "$PROJECT_DIR/settings.gradle" || exit 1
+          test -f "$PROJECT_DIR/build.gradle" || exit 1
+          test -f "$PROJECT_DIR/gradle.properties" || exit 1
+          test -d "$PROJECT_DIR/app" || exit 1
+          test -f "$PROJECT_DIR/app/build.gradle" || exit 1
+          test -f "$PROJECT_DIR/app/src/main/AndroidManifest.xml" || exit 1
+          test -s "$PROJECT_DIR/app/src/main/assets/content.json" || exit 1
 
           echo "======================================"
-          echo "VERIFICANDO ESTRUCTURA"
+          echo "ESTRUCTURA CORRECTA"
           echo "======================================"
 
-          test -f "$PROJECT_DIR/settings.gradle" || {
-            echo "ERROR: falta settings.gradle"
-            exit 1
-          }
-
-          test -f "$PROJECT_DIR/build.gradle" || {
-            echo "ERROR: falta build.gradle"
-            exit 1
-          }
-
-          test -f "$PROJECT_DIR/gradle.properties" || {
-            echo "ERROR: falta gradle.properties"
-            exit 1
-          }
-
-          test -d "$PROJECT_DIR/app" || {
-            echo "ERROR: falta la carpeta app"
-            exit 1
-          }
-
-          test -f "$PROJECT_DIR/app/build.gradle" || {
-            echo "ERROR: falta app/build.gradle"
-            exit 1
-          }
-
-          test -f "$PROJECT_DIR/app/src/main/AndroidManifest.xml" || {
-            echo "ERROR: falta AndroidManifest.xml"
-            exit 1
-          }
-
-          test -f "$PROJECT_DIR/app/src/main/assets/content.json" || {
-            echo "ERROR: falta content.json"
-            exit 1
-          }
-
-          test -f "$PROJECT_DIR/app/src/main/java/com/renovatumente/app/MainActivity.java" || {
-            echo "ERROR: falta MainActivity.java"
-            exit 1
-          }
-
-          echo ""
-          echo "✓ Estructura correcta."
-
-      - name: Verificar contenido bíblico offline
+      - name: "Verificar contenido offline"
         run: |
-          PROJECT_DIR="$(cat project_dir.txt)"
+          PROJECT_DIR=$(cat project_dir.txt)
 
-          echo "======================================"
-          echo "BIBLIA OFFLINE"
-          echo "======================================"
-
-          if [ ! -s "$PROJECT_DIR/app/src/main/assets/content.json" ]; then
-            echo "ERROR: content.json no existe o está vacío."
-            exit 1
-          fi
-
-          echo "✓ Contenido bíblico encontrado."
-          echo "Tamaño:"
+          echo "Contenido bíblico offline:"
           du -h "$PROJECT_DIR/app/src/main/assets/content.json"
 
-      - name: Compilar APK
-        run: |
-          PROJECT_DIR="$(cat project_dir.txt)"
+          echo "Contenido encontrado correctamente."
 
-          echo "======================================"
-          echo "COMPILANDO APK"
-          echo "======================================"
+      - name: "Compilar APK"
+        run: |
+          PROJECT_DIR=$(cat project_dir.txt)
 
           cd "$PROJECT_DIR"
 
           gradle assembleDebug --stacktrace
 
-      - name: Verificar APK generada
+      - name: "Verificar APK"
         run: |
-          PROJECT_DIR="$(cat project_dir.txt)"
+          PROJECT_DIR=$(cat project_dir.txt)
 
           echo "======================================"
           echo "APK GENERADA"
           echo "======================================"
 
           find "$PROJECT_DIR/app/build/outputs/apk/debug" \
-            -name "*.apk" \
             -type f \
+            -name "*.apk" \
             -print
 
-          APK_COUNT="$(find "$PROJECT_DIR/app/build/outputs/apk/debug" \
-            -name "*.apk" \
-            -type f | wc -l)"
+          APK_COUNT=$(find "$PROJECT_DIR/app/build/outputs/apk/debug" \
+            -type f \
+            -name "*.apk" | wc -l)
 
           if [ "$APK_COUNT" -eq 0 ]; then
             echo "ERROR: No se generó ninguna APK."
             exit 1
           fi
 
-          echo ""
-          echo "✓ APK generada correctamente."
-
-      - name: Publicar APK
+      - name: "Publicar APK"
         uses: actions/upload-artifact@v4
         with:
-          name: Renova-tu-mente-APK-sin-conexion
-          path: renova/**/app/build/outputs/apk/debug/*.apk
+          name: "Renova-tu-mente-APK-sin-conexion"
+          path: "renova/**/app/build/outputs/apk/debug/*.apk"
           if-no-files-found: error
 ```
