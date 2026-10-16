@@ -49,7 +49,7 @@ jobs:
 
       - name: Verificar ZIP
         run: |
-          ZIP="Renova-tu-mente-1000-versiculos-offline.zip"
+          ZIP="Renova-tu-mente-PROYECTO-COMPLETO.zip"
 
           if [ ! -f "$ZIP" ]; then
             echo "ERROR: No se encontró:"
@@ -69,7 +69,7 @@ jobs:
           mkdir -p renova
 
           unzip -q \
-            "Renova-tu-mente-1000-versiculos-offline.zip" \
+            "Renova-tu-mente-PROYECTO-COMPLETO.zip" \
             -d renova
 
           echo "ZIP extraído."
@@ -82,7 +82,7 @@ jobs:
             echo "ERROR: No se encontró settings.gradle dentro del ZIP."
             echo ""
             echo "Contenido del ZIP:"
-            unzip -l "Renova-tu-mente-1000-versiculos-offline.zip"
+            unzip -l "Renova-tu-mente-PROYECTO-COMPLETO.zip"
             exit 1
           fi
 
