@@ -1,0 +1,204 @@
+```yaml
+name: Compilar APK Renova tu mente sin conexión
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar proyecto
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Instalar componentes Android
+        run: |
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "No se encontró sdkmanager"
+            exit 1
+          fi
+
+          yes | "$SDKMANAGER" --sdk_root="$ANDROID_HOME" --licenses || true
+
+          "$SDKMANAGER" --sdk_root="$ANDROID_HOME" \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
+
+      - name: Configurar Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Verificar ZIP
+        run: |
+          ZIP="Renova-tu-mente-PROYECTO-COMPLETO.zip"
+
+          if [ ! -f "$ZIP" ]; then
+            echo "ERROR: No se encontró:"
+            echo "$ZIP"
+            echo ""
+            echo "Archivos disponibles:"
+            ls -lah
+            exit 1
+          fi
+
+          echo "✓ ZIP encontrado:"
+          ls -lh "$ZIP"
+
+      - name: Extraer proyecto
+        run: |
+          ZIP="Renova-tu-mente-PROYECTO-COMPLETO.zip"
+
+          rm -rf renova
+          mkdir -p renova
+
+          unzip -q "$ZIP" -d renova
+
+          echo "======================================"
+          echo "CONTENIDO EXTRAÍDO"
+          echo "======================================"
+
+          find renova -maxdepth 3 -type f -print
+
+      - name: Detectar proyecto Android
+        run: |
+          SETTINGS="$(find renova -name settings.gradle -type f | head -n 1)"
+
+          if [ -z "$SETTINGS" ]; then
+            echo "ERROR: No se encontró settings.gradle dentro del ZIP."
+            echo ""
+            echo "Contenido completo:"
+            find renova -maxdepth 5 -type f -print
+            exit 1
+          fi
+
+          PROJECT_DIR="$(dirname "$SETTINGS")"
+
+          echo "Proyecto Android encontrado en:"
+          echo "$PROJECT_DIR"
+
+          echo "$PROJECT_DIR" > project_dir.txt
+
+      - name: Verificar estructura del proyecto
+        run: |
+          PROJECT_DIR="$(cat project_dir.txt)"
+
+          echo "======================================"
+          echo "VERIFICANDO ESTRUCTURA"
+          echo "======================================"
+
+          test -f "$PROJECT_DIR/settings.gradle" || {
+            echo "ERROR: falta settings.gradle"
+            exit 1
+          }
+
+          test -f "$PROJECT_DIR/build.gradle" || {
+            echo "ERROR: falta build.gradle"
+            exit 1
+          }
+
+          test -f "$PROJECT_DIR/gradle.properties" || {
+            echo "ERROR: falta gradle.properties"
+            exit 1
+          }
+
+          test -d "$PROJECT_DIR/app" || {
+            echo "ERROR: falta la carpeta app"
+            exit 1
+          }
+
+          test -f "$PROJECT_DIR/app/build.gradle" || {
+            echo "ERROR: falta app/build.gradle"
+            exit 1
+          }
+
+          test -f "$PROJECT_DIR/app/src/main/AndroidManifest.xml" || {
+            echo "ERROR: falta AndroidManifest.xml"
+            exit 1
+          }
+
+          test -f "$PROJECT_DIR/app/src/main/assets/content.json" || {
+            echo "ERROR: falta content.json"
+            exit 1
+          }
+
+          test -f "$PROJECT_DIR/app/src/main/java/com/renovatumente/app/MainActivity.java" || {
+            echo "ERROR: falta MainActivity.java"
+            exit 1
+          }
+
+          echo ""
+          echo "✓ Estructura correcta."
+
+      - name: Verificar contenido bíblico offline
+        run: |
+          PROJECT_DIR="$(cat project_dir.txt)"
+
+          echo "======================================"
+          echo "BIBLIA OFFLINE"
+          echo "======================================"
+
+          if [ ! -s "$PROJECT_DIR/app/src/main/assets/content.json" ]; then
+            echo "ERROR: content.json no existe o está vacío."
+            exit 1
+          fi
+
+          echo "✓ Contenido bíblico encontrado."
+          echo "Tamaño:"
+          du -h "$PROJECT_DIR/app/src/main/assets/content.json"
+
+      - name: Compilar APK
+        run: |
+          PROJECT_DIR="$(cat project_dir.txt)"
+
+          echo "======================================"
+          echo "COMPILANDO APK"
+          echo "======================================"
+
+          cd "$PROJECT_DIR"
+
+          gradle assembleDebug --stacktrace
+
+      - name: Verificar APK generada
+        run: |
+          PROJECT_DIR="$(cat project_dir.txt)"
+
+          echo "======================================"
+          echo "APK GENERADA"
+          echo "======================================"
+
+          find "$PROJECT_DIR/app/build/outputs/apk/debug" \
+            -name "*.apk" \
+            -type f \
+            -print
+
+          APK_COUNT="$(find "$PROJECT_DIR/app/build/outputs/apk/debug" \
+            -name "*.apk" \
+            -type f | wc -l)"
+
+          if [ "$APK_COUNT" -eq 0 ]; then
+            echo "ERROR: No se generó ninguna APK."
+            exit 1
+          fi
+
+          echo ""
+          echo "✓ APK generada correctamente."
+
+      - name: Publicar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Renova-tu-mente-APK-sin-conexion
+          path: renova/**/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+```
