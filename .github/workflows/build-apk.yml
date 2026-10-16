@@ -1,4 +1,5 @@
-name: "Compilar APK Renova tu mente sin conexión"
+
+name: Compilar APK Renova tu mente
 
 on:
   workflow_dispatch:
@@ -6,62 +7,62 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
-      - name: "Descargar proyecto"
-        uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v5
 
-      - name: "Configurar Java 17"
-        uses: actions/setup-java@v4
+      - name: Java 17
+        uses: actions/setup-java@v5
         with:
-          distribution: "temurin"
+          distribution: temurin
           java-version: "17"
 
-      - name: "Instalar Android SDK"
+      - name: Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: "Instalar componentes Android"
+      - name: Instalar SDK Android 35
         run: |
           yes | sdkmanager --licenses || true
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
 
-      - name: "Configurar Gradle"
+      - name: Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
 
-      - name: "Verificar ZIP"
+      - name: Comprobar ZIP
         run: |
-          ZIP="Renova-tu-mente-1000-versiculos-offline.zip"
-
-          if [ ! -f "$ZIP" ]; then
-            echo "ERROR: No se encontró el ZIP:"
-            echo "$ZIP"
-            echo ""
+          if [ ! -f "Renova-tu-mente-1000-versiculos-offline.zip" ]; then
+            echo "ERROR: No se encontró el ZIP."
             echo "Archivos disponibles:"
             ls -lah
             exit 1
           fi
 
-          echo "ZIP encontrado correctamente:"
-          ls -lh "$ZIP"
+          echo "ZIP encontrado correctamente."
 
-      - name: "Extraer proyecto"
+      - name: Extraer ZIP
         run: |
           rm -rf renova
           mkdir -p renova
 
-          unzip -q "Renova-tu-mente-1000-versiculos-offline.zip" -d renova
+          unzip -q \
+            "Renova-tu-mente-1000-versiculos-offline.zip" \
+            -d renova
 
-          echo "Proyecto extraído."
+          echo "ZIP extraído correctamente."
 
-      - name: "Detectar carpeta del proyecto"
+      - name: Buscar proyecto Android
         run: |
           SETTINGS=$(find renova -type f -name "settings.gradle" | head -n 1)
 
           if [ -z "$SETTINGS" ]; then
-            echo "ERROR: No se encontró settings.gradle dentro del ZIP."
+            echo "ERROR: No se encontró settings.gradle."
             echo ""
             echo "Contenido del ZIP:"
             unzip -l "Renova-tu-mente-1000-versiculos-offline.zip"
@@ -70,37 +71,38 @@ jobs:
 
           PROJECT_DIR=$(dirname "$SETTINGS")
 
-          echo "Proyecto encontrado en:"
+          echo "Proyecto encontrado:"
           echo "$PROJECT_DIR"
 
           echo "$PROJECT_DIR" > project_dir.txt
 
-      - name: "Verificar estructura"
+      - name: Verificar proyecto
         run: |
           PROJECT_DIR=$(cat project_dir.txt)
 
-          test -f "$PROJECT_DIR/settings.gradle" || exit 1
-          test -f "$PROJECT_DIR/build.gradle" || exit 1
-          test -f "$PROJECT_DIR/gradle.properties" || exit 1
-          test -d "$PROJECT_DIR/app" || exit 1
-          test -f "$PROJECT_DIR/app/build.gradle" || exit 1
-          test -f "$PROJECT_DIR/app/src/main/AndroidManifest.xml" || exit 1
-          test -s "$PROJECT_DIR/app/src/main/assets/content.json" || exit 1
-
           echo "======================================"
-          echo "ESTRUCTURA CORRECTA"
+          echo "VERIFICANDO PROYECTO"
           echo "======================================"
 
-      - name: "Verificar contenido offline"
+          test -f "$PROJECT_DIR/settings.gradle"
+          test -f "$PROJECT_DIR/build.gradle"
+          test -f "$PROJECT_DIR/app/build.gradle"
+          test -f "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
+          test -s "$PROJECT_DIR/app/src/main/assets/content.json"
+
+          echo "Proyecto Android correcto."
+
+      - name: Mostrar información
         run: |
           PROJECT_DIR=$(cat project_dir.txt)
 
-          echo "Contenido bíblico offline:"
+          echo "======================================"
+          echo "CONTENIDO OFFLINE"
+          echo "======================================"
+
           du -h "$PROJECT_DIR/app/src/main/assets/content.json"
 
-          echo "Contenido encontrado correctamente."
-
-      - name: "Compilar APK"
+      - name: Compilar APK Debug
         run: |
           PROJECT_DIR=$(cat project_dir.txt)
 
@@ -108,12 +110,12 @@ jobs:
 
           gradle assembleDebug --stacktrace
 
-      - name: "Verificar APK"
+      - name: Verificar APK
         run: |
           PROJECT_DIR=$(cat project_dir.txt)
 
           echo "======================================"
-          echo "APK GENERADA"
+          echo "APK"
           echo "======================================"
 
           find "$PROJECT_DIR/app/build/outputs/apk/debug" \
@@ -126,13 +128,15 @@ jobs:
             -name "*.apk" | wc -l)
 
           if [ "$APK_COUNT" -eq 0 ]; then
-            echo "ERROR: No se generó ninguna APK."
+            echo "ERROR: No se generó la APK."
             exit 1
           fi
 
-      - name: "Publicar APK"
+          echo "APK generada correctamente."
+
+      - name: Subir APK
         uses: actions/upload-artifact@v4
         with:
-          name: "Renova-tu-mente-APK-sin-conexion"
+          name: Renova-tu-mente-APK
           path: "renova/**/app/build/outputs/apk/debug/*.apk"
           if-no-files-found: error
